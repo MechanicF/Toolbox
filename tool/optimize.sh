@@ -49,6 +49,20 @@ EOF
     echo "✅ 已设置当前和持久化最大文件描述符数为 65535。"
 }
 
+install_bbr_kernel() {
+    echo "⚙️ 正在尝试安装 BBR 支持内核（适用于 Debian/Ubuntu）..."
+    apt update
+    apt install -y wget curl gnupg lsb-release ca-certificates
+
+    # 安装适配内核
+    echo "📦 安装 backports 新内核..."
+    echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list
+    apt update
+    apt install -y -t bookworm-backports linux-image-amd64
+
+    echo "✅ 安装完成，建议重启系统以启用新内核并启用 BBR。"
+}
+
 enable_bbr() {
     while true; do
         echo "==============================="
@@ -58,6 +72,7 @@ enable_bbr() {
         echo "2️⃣  启用 BBRv2"
         echo "3️⃣  启用 BBRv3（需内核支持）"
         echo "4️⃣  查看当前 BBR 状态"
+        echo "5️⃣  检查并安装支持 BBR 的内核"
         echo "0️⃣  返回主菜单"
         echo "==============================="
         echo -n "请输入选项编号: "
@@ -88,7 +103,11 @@ enable_bbr() {
             4)
                 echo "📊 当前可用算法：$(sysctl net.ipv4.tcp_available_congestion_control)"
                 echo "🎯 当前使用算法：$(sysctl -n net.ipv4.tcp_congestion_control)"
+                echo "🧠 BBR 是否加载模块：$(lsmod | grep bbr || echo '未加载')"
                 uname -r | grep -qi "bbrv3" && echo "✅ 当前为 BBRv3 内核"
+                ;;
+            5)
+                install_bbr_kernel
                 ;;
             0) break ;;
             *) echo "❌ 无效选项" ;;
@@ -98,13 +117,14 @@ enable_bbr() {
 }
 
 show_status() {
-    echo "📊 当前部分关键优化参数："
-    sysctl net.ipv4.tcp_congestion_control
-    sysctl net.core.somaxconn
-    sysctl fs.file-max
-    ulimit -n
-    echo "📄 当前 limits 配置：$LIMITS_FILE"
-    tail -n 5 $LIMITS_FILE 2>/dev/null || echo "(未设置)"
+    echo "📊 当前关键优化参数状态："
+    echo "-------------------------------"
+    echo "🎯 拥塞控制算法：$(sysctl -n net.ipv4.tcp_congestion_control)  （当前 TCP 拥塞控制使用的算法）"
+    echo "📡 最大连接队列长度：$(sysctl -n net.core.somaxconn)  （影响高并发连接数）"
+    echo "📂 最大文件数：$(sysctl -n fs.file-max)  （系统级最大文件句柄数）"
+    echo "🔧 ulimit 当前值：$(ulimit -n)  （当前 shell 的最大文件描述符）"
+    echo "📄 配置文件路径："
+    [ -f "$LIMITS_FILE" ] && echo "  ↪️ $LIMITS_FILE:" && tail -n 5 $LIMITS_FILE || echo "  ⚠️ 未设置 ulimit 配置"
 }
 
 restore_default() {
