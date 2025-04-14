@@ -3,7 +3,7 @@
 SWAP_FILE="/swapfile"
 
 show_menu() {
-    clear  # 每次显示菜单前清理屏幕
+    clear
     echo "==============================="
     echo "🔧 Debian Swap 管理工具菜单"
     echo "==============================="
@@ -54,6 +54,9 @@ show_swap_status() {
     echo "📋 当前 swap 使用状态："
     swapon --show
     free -h
+    echo ""
+    echo "按任意键继续..."
+    read -n 1 -s  # 等待用户按下任意键
 }
 
 delete_swap() {
