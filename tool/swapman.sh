@@ -3,7 +3,7 @@
 SWAP_FILE="/swapfile"
 
 show_menu() {
-    clear
+    clear  # 每次显示菜单前清理屏幕
     echo "==============================="
     echo "🔧 Debian Swap 管理工具菜单"
     echo "==============================="
@@ -80,7 +80,7 @@ show_memory_info() {
 
 while true; do
     show_menu
-    read opt
+    read -p "请输入选项编号: " opt
     case $opt in
         1) create_swap ;;
         2) set_swappiness ;;
