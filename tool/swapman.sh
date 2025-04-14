@@ -61,9 +61,16 @@ set_swappiness() {
 }
 
 show_swap_status() {
-    echo "📋 当前 swap 使用状态："
-    swapon --show
-    free -h
+    echo "📋 当前 Swap 使用状态："
+    echo "-------------------------------"
+    swapon --show | awk 'BEGIN {print "名称\t\t类型\t大小\t已用\t优先级"} NR==1 {next} {printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5}'
+    echo "-------------------------------"
+    echo "💡 注：如果没有显示内容，说明当前系统未启用任何 Swap。"
+    echo ""
+    echo "🔎 系统总内存使用情况："
+    echo "-------------------------------"
+    free -h | awk 'NR==1 {print $1, "\t总计\t已用\t空闲\t共享\t缓存\t可用"} NR==2 {print "内存:", $2, $3, $4, $5, $6, $7} NR==3 {print "Swap:", $2, $3, $4}'
+    echo "-------------------------------"
     pause
 }
 
@@ -81,10 +88,16 @@ delete_swap() {
 }
 
 show_memory_info() {
-    echo "🧠 系统内存使用情况："
-    free -m
+    echo "🧠 系统内存信息："
+    echo "-------------------------------"
+    free -m | awk 'NR==1 {print $1, "\t总计\t已用\t空闲\t共享\t缓存\t可用"} NR==2 {print "内存:", $2 "MB", $3 "MB", $4 "MB", $5 "MB", $6 "MB", $7 "MB"} NR==3 {print "Swap:", $2 "MB", $3 "MB", $4 "MB"}'
+    echo "-------------------------------"
     echo ""
-    echo "💡 swappiness 当前值: $(cat /proc/sys/vm/swappiness)"
+    echo "💡 swappiness 当前值：$(cat /proc/sys/vm/swappiness)"
+    echo "   swappiness 决定了系统使用 Swap 的频率，范围 0-100："
+    echo "   🔸 数值小：尽量使用物理内存，延迟使用 Swap（如 10）"
+    echo "   🔸 数值大：更积极使用 Swap，减少内存占用（如 60）"
+    echo ""
     pause
 }
 
