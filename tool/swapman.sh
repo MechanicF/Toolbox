@@ -2,8 +2,14 @@
 
 SWAP_FILE="/swapfile"
 
+pause() {
+    echo ""
+    echo "🔁 按任意键返回菜单..."
+    read -n 1 -s
+}
+
 show_menu() {
-    clear  # 每次显示菜单前清理屏幕
+    clear
     echo "==============================="
     echo "🔧 Debian Swap 管理工具菜单"
     echo "==============================="
@@ -21,10 +27,12 @@ create_swap() {
     read -p "请输入 swap 大小（如 2G 或 1024M）: " size
     if [ -z "$size" ]; then
         echo "❌ 输入为空，已取消操作。"
+        pause
         return
     fi
     if swapon --show | grep -q "$SWAP_FILE"; then
         echo "⚠️ Swap 文件 $SWAP_FILE 已存在，跳过创建。"
+        pause
         return
     fi
     echo "📦 正在创建 $size 的 swap 文件..."
@@ -36,6 +44,7 @@ create_swap() {
         echo "$SWAP_FILE none swap sw 0 0" >> /etc/fstab
     fi
     echo "✅ Swap 文件创建并启用成功。"
+    pause
 }
 
 set_swappiness() {
@@ -48,15 +57,14 @@ set_swappiness() {
         echo "vm.swappiness=$value" >> /etc/sysctl.conf
     fi
     echo "✅ swappiness 设置为 $value（已持久化）。"
+    pause
 }
 
 show_swap_status() {
     echo "📋 当前 swap 使用状态："
     swapon --show
     free -h
-    echo ""
-    echo "按任意键继续..."
-    read -n 1 -s  # 等待用户按下任意键
+    pause
 }
 
 delete_swap() {
@@ -69,6 +77,7 @@ delete_swap() {
     else
         echo "⚠️ 当前没有使用中的 $SWAP_FILE。"
     fi
+    pause
 }
 
 show_memory_info() {
@@ -76,24 +85,19 @@ show_memory_info() {
     free -m
     echo ""
     echo "💡 swappiness 当前值: $(cat /proc/sys/vm/swappiness)"
+    pause
 }
 
 while true; do
     show_menu
-    read -p "请输入选项编号: " opt
+    read opt
     case $opt in
         1) create_swap ;;
         2) set_swappiness ;;
         3) show_swap_status ;;
         4) delete_swap ;;
         5) show_memory_info ;;
-        0) 
-            echo "👋 退出"
-            break ;;  # 退出菜单
-        *)
-            echo "❌ 无效选项，请输入 0-5。"
-            ;;
+        0) echo "👋 退出"; break ;;
+        *) echo "❌ 无效选项，请输入 0-5。"; pause ;;
     esac
-    echo ""  # 增加空行
-    sleep 1  # 增加短暂的延时
 done
