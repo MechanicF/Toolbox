@@ -34,36 +34,19 @@ echo "设置登录用户名和密码..."
 /usr/bin/x-ui set password $PASSWORD
 /usr/bin/x-ui set port $PORT
 
-# 创建 systemd 服务文件
-echo "创建 systemd 服务文件..."
-cat <<EOF > /etc/systemd/system/x-ui.service
-[Unit]
-Description=x-ui service
-After=network.target
+# 创建启动命令
+echo "创建启动命令..."
+mkdir -p /var/log/x-ui
 
-[Service]
-ExecStart=/usr/bin/x-ui
-WorkingDirectory=/usr/local/x-ui
-Restart=always
-User=root
-Group=root
-Environment=PATH=/usr/bin:/usr/local/bin
-Environment=USER=root
-Environment=HOME=/root
+# 使用 nohup 启动 x-ui
+echo "使用 nohup 启动 x-ui..."
+nohup /usr/bin/x-ui > /var/log/x-ui/x-ui.log 2>&1 &
 
-[Install]
-WantedBy=multi-user.target
-EOF
+# 获取后台进程的 PID
+PID=$!
+echo "x-ui 服务已启动，PID: $PID"
+echo "日志输出到 /var/log/x-ui/x-ui.log"
 
-# 重新加载 systemd 服务
-echo "重新加载 systemd 服务..."
-systemctl daemon-reload
-
-# 启动并启用 x-ui 服务
-echo "启动并启用 x-ui 服务..."
-systemctl enable x-ui
-systemctl start x-ui
-
-# 查看服务状态
-echo "查看 x-ui 服务状态..."
-systemctl status x-ui
+# 确保 nohup 启动时命令在后台运行
+echo "x-ui 启动成功！可以通过以下命令查看日志："
+echo "tail -f /var/log/x-ui/x-ui.log"
