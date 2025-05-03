@@ -1,84 +1,69 @@
 #!/bin/bash
 
-set -e
+# 获取用户输入
+read -p "请输入 Web 面板端口（默认 54321）: " PORT
+PORT=${PORT:-54321}
+read -p "请输入登录用户名（默认 admin）: " USERNAME
+USERNAME=${USERNAME:-admin}
+read -p "请输入登录密码（默认 admin）: " PASSWORD
+PASSWORD=${PASSWORD:-admin}
 
-green='\033[0;32m'
-yellow='\033[0;33m'
-red='\033[0;31m'
-plain='\033[0m'
+# 更新软件包
+echo "更新软件包..."
+apt update && apt upgrade -y
 
-echo -e "${green}x-ui 容器适配安装脚本（含 supervisord 管理）${plain}"
+# 安装依赖
+echo "安装必需的依赖..."
+apt install -y curl wget tar python3-pkg-resources
 
-# 1. 输入面板端口
-read -p "请输入 Web 面板端口（默认 54321）: " input_port
-panel_port=${input_port:-54321}
-if ! [[ "$panel_port" =~ ^[0-9]+$ ]]; then
-  echo -e "${red}端口必须为数字！${plain}"
-  exit 1
-fi
+# 下载 x-ui
+echo "下载 x-ui..."
+curl -Ls https://github.com/vaxilu/x-ui/releases/download/0.3.2/x-ui-linux-amd64.tar.gz -o /tmp/x-ui-linux-amd64.tar.gz
+tar -zxvf /tmp/x-ui-linux-amd64.tar.gz -C /usr/local/
+rm -f /tmp/x-ui-linux-amd64.tar.gz
 
-# 2. 输入用户名
-read -p "请输入登录用户名（默认 admin）: " input_user
-panel_user=${input_user:-admin}
+# 配置 x-ui
+echo "配置 x-ui..."
+cd /usr/local/x-ui
+chmod +x x-ui
+cp x-ui.sh /usr/bin/x-ui
 
-# 3. 输入密码
-read -p "请输入登录密码（默认 admin）: " input_pass
-panel_pass=${input_pass:-admin}
+# 设置用户名和密码
+echo "设置登录用户名和密码..."
+/usr/bin/x-ui set username $USERNAME
+/usr/bin/x-ui set password $PASSWORD
+/usr/bin/x-ui set port $PORT
 
-# 4. 安装依赖
-apt update
-apt install -y curl wget tar supervisor
+# 创建 systemd 服务文件
+echo "创建 systemd 服务文件..."
+cat <<EOF > /etc/systemd/system/x-ui.service
+[Unit]
+Description=x-ui service
+After=network.target
 
-# 5. 架构判断
-arch=$(uname -m)
-if [[ $arch == "x86_64" || $arch == "amd64" ]]; then
-  ARCH="amd64"
-elif [[ $arch == "aarch64" || $arch == "arm64" ]]; then
-  ARCH="arm64"
-else
-  echo -e "${red}未知架构 $arch，默认使用 amd64${plain}"
-  ARCH="amd64"
-fi
+[Service]
+ExecStart=/usr/bin/x-ui
+WorkingDirectory=/usr/local/x-ui
+Restart=always
+User=root
+Group=root
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=USER=root
+Environment=HOME=/root
 
-# 6. 下载 x-ui
-cd /usr/local
-VERSION=$(curl -s https://api.github.com/repos/vaxilu/x-ui/releases/latest | grep tag_name | cut -d '"' -f4)
-wget -O x-ui-linux-${ARCH}.tar.gz https://github.com/vaxilu/x-ui/releases/download/${VERSION}/x-ui-linux-${ARCH}.tar.gz
-tar zxvf x-ui-linux-${ARCH}.tar.gz
-rm -f x-ui-linux-${ARCH}.tar.gz
-
-chmod +x /usr/local/x-ui/x-ui
-chmod +x /usr/local/x-ui/bin/xray-linux-${ARCH}
-
-# 7. 下载控制脚本
-wget -O /usr/bin/x-ui https://raw.githubusercontent.com/vaxilu/x-ui/main/x-ui.sh
-chmod +x /usr/bin/x-ui
-
-# 8. 设置账号、密码、端口
-/usr/local/x-ui/x-ui setting -username "$panel_user" -password "$panel_pass"
-/usr/local/x-ui/x-ui setting -port "$panel_port"
-
-# 9. 配置 supervisor
-cat > /etc/supervisor/conf.d/x-ui.conf <<EOF
-[program:x-ui]
-command=/usr/local/x-ui/x-ui
-directory=/usr/local/x-ui/
-autostart=true
-autorestart=true
-stderr_logfile=/var/log/x-ui.err.log
-stdout_logfile=/var/log/x-ui.out.log
+[Install]
+WantedBy=multi-user.target
 EOF
 
-# 10. 启动服务
-supervisorctl reread
-supervisorctl update
-supervisorctl start x-ui
+# 重新加载 systemd 服务
+echo "重新加载 systemd 服务..."
+systemctl daemon-reload
 
-# 11. 输出信息
-echo -e ""
-echo -e "${green}✅ x-ui 安装完成！${plain}"
-echo -e "🌐 访问地址: http://<你的IP>:${yellow}${panel_port}${plain}"
-echo -e "👤 用户名: ${yellow}${panel_user}${plain}"
-echo -e "🔐 密码: ${yellow}${panel_pass}${plain}"
-echo -e "📌 运行方式: supervisord 管理"
-echo -e "▶️ 查看状态: ${green}supervisorctl status x-ui${plain}"
+# 启动并启用 x-ui 服务
+echo "启动并启用 x-ui 服务..."
+systemctl enable x-ui
+systemctl start x-ui
+
+# 查看服务状态
+echo "查看 x-ui 服务状态..."
+systemctl status x-ui
